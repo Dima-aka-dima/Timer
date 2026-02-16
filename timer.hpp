@@ -1,16 +1,14 @@
-#include <iostream>
-
 #include <chrono>
 #include <string>
-#include <sstream>
 #include <vector>
+#include <sstream>
 #include <algorithm> // std::sort
 #include <numeric>   // std::accumulate
 #include <iomanip>   // std::setw
 
 namespace Timer
 {
-	// Type and other shenanigans	
+	// Type shenanigans	
 	#define isOption(Option, ...) constexpr ((std::is_same_v<Option, __VA_ARGS__> || ...))	
 	
 	template<typename Period> struct __units    { static constexpr const char* value = "?";  };
@@ -58,7 +56,9 @@ namespace Timer
 	
 	Timer* tree = new Timer();
 	Timer* timer = tree;
-	
+
+	// Main measurement class. Construction (destruction)
+	// corresponds to starting (stopping) the measuremsent
 	#define Measure __Measure __measurement
 	class __Measure
 	{
@@ -91,6 +91,7 @@ namespace Timer
 		for(auto child: timer->children) sort(child);
 	}
 	
+	// Converts one measurement to string 
 	template<typename time_t, typename... Options>
 	std::string __string(Timer* timer)
 	{
@@ -118,7 +119,7 @@ namespace Timer
 		return stream.str();
 	}
 
-	// Main function that converts the measurements to string
+	// Main function that converts measurements to string
 	template<typename... Options>
 	std::string string()
 	{
@@ -133,51 +134,4 @@ namespace Timer
 		return __string<time_t, Options...>(tree);
 	}
 	
-}
-
-int loop(size_t n = 20000000)
-{
-
-	volatile int sum = 0;
-	for(size_t i = 0; i < n; i++) sum += i*i;
-	return sum;
-};
-
-int main()
-{
-	{Timer::Measure("Outer Timer");
-	{
-		Timer::Measure("First Loop");
-		loop();
-		// Timer::Measure("First Loop part 2"); // Will not compile, one timer per scope!
-	}
-
-	{
-		Timer::Measure("Second Loop");	
-		loop();
-
-		{
-			Timer::Measure("Inside Second Loop 1");
-			loop();
-		}
-
-		{
-			Timer::Measure("Inside Second Loop 2");
-			loop();
-			{
-				Timer::Measure("Inside Inside Second Loop 2");
-				loop(); loop();
-			}
-		}
-	}
-	{
-		Timer::Measure("Third Loop");
-		loop();
-	}
-	}
-
-	std::cout << Timer::string<>() << std::endl;
-	std::cout << Timer::string<Timer::Sort, Timer::Align>() << std::endl;
-	std::cout << Timer::string<std::chrono::microseconds, Timer::Sort, Timer::Percentage, Timer::Align>() << std::endl;
-	std::cout << Timer::string<std::chrono::nanoseconds, Timer::Align>() << std::endl; // Will still be sorted
 }
