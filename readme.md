@@ -3,7 +3,7 @@ Timer namespace that can be used to measure execution time in scope.
 ### Example Usage
 Measuring
 ```cpp
-{Measure("Timer name") // Timer starts
+{Measure("Timer name"); // Timer starts
 	// ...
 } // Timer stops
 ```
