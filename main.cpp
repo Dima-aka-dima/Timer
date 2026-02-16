@@ -101,7 +101,7 @@ namespace Timer
 			for(size_t i = 0; i < timer->depth - 1; i++) stream << "| ";
 			stream << timer->name + ": ";
 			
-			// Timing
+			// Time measured in time_t
 			if isOption(Align, Options) stream << std::right << std::setw(maxNameLength - stream.tellp());
 			stream << std::chrono::duration_cast<time_t>(timer->time).count() << units<time_t>();
 		
