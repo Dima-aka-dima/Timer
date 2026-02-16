@@ -2,45 +2,45 @@
 
 #include <chrono>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <unordered_map>
-#include <typeindex>
-#include <algorithm>
-#include <numeric>
-#include <iomanip>
-#include <typeindex>
+#include <algorithm> // std::sort
+#include <numeric>   // std::accumulate
+#include <iomanip>   // std::setw
+#include <typeindex> // std::type_index
 
 namespace Timer
 {
-	
-	#define Measure __Measure _measurement
-	
 	using clock = std::chrono::high_resolution_clock;
+
 	std::unordered_map<std::type_index, std::string> units = 
 	{
-		{typeid(std::chrono::nanoseconds),  "ns" },
-		{typeid(std::chrono::microseconds), "us" },
-		{typeid(std::chrono::milliseconds), "ms" },
-		{typeid(std::chrono::seconds),      "s"  },
-		{typeid(std::chrono::minutes),      "min"},
-		{typeid(std::chrono::hours),        "h"  }
+		{typeid(std::chrono::nanoseconds),  "ns" }, {typeid(std::chrono::microseconds), "us"},
+		{typeid(std::chrono::milliseconds), "ms" }, {typeid(std::chrono::seconds),      "s" },
+		{typeid(std::chrono::minutes),      "min"}, {typeid(std::chrono::hours),        "h" }
 	};
-	
-	struct Node
+
+	// Tree structure for timers
+	struct Timer
 	{
 		std::string name;
 		clock::duration time;
+		size_t depth = 0;
 
-		Node* parent = nullptr;
-		std::vector<Node*> children;
+		Timer* parent = nullptr;
+		std::vector<Timer*> children;
 
-		Node() {};
-		Node(Node* p) : parent(p) {};
+		Timer() {};
+		Timer(Timer* p, std::string s) : name(s), depth(p->depth + 1), parent(p) {};
 	};
 	
-	Node* root = new Node();
-	Node* timer = root;
+	Timer* tree = new Timer();
+	Timer* timer = tree;
 
+	// Main measurement class. Construction (destruction)
+	// corresponds to starting (stopping) the measuremsent
+	#define Measure __Measure _measurement
 	class __Measure
 	{
 		std::chrono::time_point<clock> start;
@@ -49,9 +49,8 @@ namespace Timer
 		
 		__Measure(std::string s = "")
 		{
-			timer->children.push_back(new Node(timer));
+			timer->children.push_back(new Timer(timer, s));
 			timer = timer->children.back();
-			timer->name = s;			
 
 			start = clock::now();
 		}
@@ -65,126 +64,63 @@ namespace Timer
 		}
 	};
 
-	Node* __get(std::string name, Node* node)
+	void sort(Timer* timer)
 	{
-		if(node->name == name) return node;
-		for(auto child: node->children) if(Node* found = __get(name, child)) return found;
-		return nullptr;
+		std::sort(timer->children.begin(), timer->children.end(), [](const Timer* a, const Timer* b) { return a->time > b->time; });
+		for(auto child: timer->children) sort(child);
 	}
 
-	clock::duration get(std::string name)
-	{
-		Node* node =  __get(name, root);
-		if(node == nullptr) return clock::duration::zero();
-		return node->time;
-	}
-
-	std::unordered_map<Node*, size_t> loopCounts;
-	void setLoopCount(std::string name, size_t loopCount)
-	{
-		Node* node = __get(name, root);
-		if(node == nullptr) return;
-		node->name += " (" + std::to_string(loopCount) + ")";
-		loopCounts[node] = loopCount;
-	}
-
-	void sort(Node* node)
-	{
-		std::sort(node->children.begin(), node->children.end(), [](const Node* a, const Node* b) 
-				{ return a->time > b->time; });
-		for(auto child: node->children) sort(child);
-	}
-
-	size_t getDepth(Node* node)
-	{
-		if(node == root) return 0;
-		return getDepth(node->parent) + 1;
-	}
-
-	double getPercentage(Node* node)
-	{
-		if(node->parent == root) return 100.0;
-		return 100.0 *node->time / node->parent->time;
-	}
-
-	template<typename time_t> 
-	std::string getTime(Node* node)
-	{
-		uint64_t time = std::chrono::duration_cast<time_t>(node->time).count();
-		if(loopCounts.find(node) != loopCounts.end()) time /= loopCounts[node];
-		return std::to_string(time);
-	}
+	// Print options
+	const uint64_t Sort 	  = 0b001; // Sort by time
+	const uint64_t Percentage = 0b010; // Display percentage of outer timer
+	const uint64_t Align      = 0b100; // Align as columns
 	
-	size_t __setNameAlignment(Node* node)
-	{
-		size_t offset = 0;
-		for(auto child: node->children) offset = std::max(offset, __setNameAlignment(child));
-		return std::max(node->name.size() + 2*getDepth(node), offset);
-	}
+	constexpr size_t maxNameLength = 45;
+	constexpr size_t maxTimeLength = 15;
 
-	template <typename time_t>
-	size_t __setTimeAlignment(Node* node)
-	{
-		size_t offset = 0;
-		for(auto child: node->children) offset = std::max(offset, __setTimeAlignment<time_t>(child));
-		return std::max(getTime<time_t>(node).size(), offset);
-	}
-
-	size_t nameAlignment = 0;
-	size_t timeAlignment = 0;
-	
-	template <typename time_t>
-	void setAlignment()
-	{
-		nameAlignment = __setNameAlignment(root);
-		timeAlignment = __setTimeAlignment<time_t>(root);
-	}
-
-	const uint64_t Depth      = 0b0001;
-	const uint64_t Sort 	  = 0b0010;
-	const uint64_t Percentage = 0b0100;
-	const uint64_t Align      = 0b1000;	
-
+	// Converts one measurement to string 
 	template<typename time_t>
-	std::string __string(Node* node, uint64_t flags)
+	std::string __string(Timer* timer, uint64_t flags)
 	{
-		std::ostringstream stream;
+		std::stringstream stream;
 		
-		if(flags & Depth) for(size_t i = 0; i < getDepth(node) - 1; i++) stream << "| ";
-	
-		if(flags & Align) stream << std::left <<\
-			std::setw(nameAlignment + ((flags & Depth ? -2*getDepth(node) : 0)) + 3);
-		stream << node->name + ": ";
+		if(timer != tree)
+		{
+			for(size_t i = 0; i < timer->depth - 1; i++) stream << "| ";
+			stream << timer->name + ": ";
 
-		std::string unit = units[typeid(time_t)];
-		if(flags & Align) stream << std::left << std::setw(timeAlignment + unit.size() + 1);
-		stream << getTime<time_t>(node) + unit;
-		
-		if(flags & Percentage) stream << " " << getPercentage(node) << "%";
-		
-		stream << std::endl;
+			if (flags & Align) stream << std::right << std::setw(maxNameLength - stream.tellp());
+			stream << std::chrono::duration_cast<time_t>(timer->time).count() << units[typeid(time_t)];
+			
+			double percentage = 100.0 * timer->time / timer->parent->time;
+			if (flags & Align) stream << std::left << std::setw(maxNameLength + maxTimeLength - stream.tellp());
+			if (flags & Percentage) stream << " " << percentage << "%";	
+			stream << std::endl;
+		}
 
-		for(auto child: node->children) stream << __string<time_t>(child, flags);
+		for(auto child: timer->children) stream << __string<time_t>(child, flags);
+		
 		return stream.str();
 	}
 	
+	// Main function that converts measurements to string
 	template<typename time_t = std::chrono::milliseconds>
-	std::string string(uint64_t flags = Timer::Depth | Timer::Align | Timer::Percentage | Timer::Sort)
+	std::string string(uint64_t flags = 0)
 	{
-		if (flags & Sort) sort(root); 
-		if (flags & Align) setAlignment<time_t>();
-		std::ostringstream stream;
-		for(auto child: root->children) stream << __string<time_t>(child, flags);
-		return stream.str();
+		if (flags & Sort) sort(tree); 
+		
+		if (flags & Percentage)
+			tree->time = std::accumulate(tree->children.begin(), tree->children.end(), clock::duration::zero(), 
+					[](const auto& acc, const auto& child){ return acc + child->time; });
+		return __string<time_t>(tree, flags);
 	}
 }
 
-int loop(size_t n = 20000000)
+void loop(size_t n = 20000000)
 {
 
 	volatile int sum = 0;
 	for(size_t i = 0; i < n; i++) sum += i*i;
-	return sum;
 };
 
 int main()
@@ -220,9 +156,8 @@ int main()
 	}
 	}
 	
-	Timer::setLoopCount("Third Loop", 10);
-	std::cout << Timer::string<std::chrono::nanoseconds>();
-	std::cout << Timer::string<std::chrono::nanoseconds>(Timer::Align);
-	std::cout << Timer::get("Outer Timer").count() << std::endl;
+	std::cout << Timer::string() << std::endl;
+	std::cout << Timer::string(Timer::Align | Timer::Percentage) << std::endl;
+	std::cout << Timer::string<std::chrono::microseconds>(Timer::Sort | Timer::Align | Timer::Percentage) << std::endl;
 
 }
