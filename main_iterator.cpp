@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+#include <stack>
 
 namespace Timer
 {
@@ -25,7 +26,7 @@ namespace Timer
 	template<> struct __units<std::ratio<60>>   { static constexpr const char* value = "m";  };
 	template<> struct __units<std::ratio<3600>> { static constexpr const char* value = "h";  };
 	template<typename Duration>
-	std::string units() {return std::string(__units<typename Duration::period>::value);}
+	std::string units() { return std::string(__units<typename Duration::period>::value); }
 	
 	template<typename T> struct is_duration : std::false_type {};
 	template<typename R, typename P> struct is_duration<std::chrono::duration<R, P>> : std::true_type {};
@@ -35,25 +36,68 @@ namespace Timer
 		{ using type = std::conditional_t<is_duration<Head>::value, Head, typename __get_time_t<Default, Tail...>::type>; };
 	template<typename Default, typename... Args>
 	using get_time_t = typename __get_time_t<Default, Args...>::type;
+
+
 	
 	// Print options
 	struct Sort 	  {}; // Sort by time
 	struct Percentage {}; // Display percentage of outer timer
 	struct Align 	  {}; // Align as columns
 
+
 	// Tree structure for timers
 	struct Node
 	{
 		std::string name;
 		clock::duration time;
+		size_t depth = 0;
 
 		Node* parent = nullptr;
 		std::vector<Node*> children;
 
 		Node() {};
-		Node(Node* p) : parent(p) {};
+		Node(Node* p) : parent(p) { depth = parent->depth + 1; };
+
+
+	class iterator
+	{
+	public:
+		using iterator_category = std::forward_iterator_tag;
+		using value_type = Node;
+		using difference_type = std::ptrdiff_t;
+		using pointer = Node*;
+		using reference = Node&;
+		
+	private:
+		std::stack<Node*> stack;
+		Node* current;
+		
+	public:
+		iterator(Node* node = nullptr) : current(node) { if (node) stack.push(node); }
+		reference operator*() const { return *current; }
+		pointer operator->() const { return current; }
+		
+		iterator& operator++()
+		{
+			if (stack.empty()) { current = nullptr; return *this; }
+			current = stack.top(); stack.pop();
+			
+			// Push children in reverse order for left-to-right traversal
+			for (auto it = current->children.rbegin(); it != current->children.rend(); ++it) stack.push(*it);
+			return *this;
+		}
+		
+		iterator operator++(int) { iterator tmp = *this; ++(*this); return tmp; }
+		bool operator==(const iterator& other) const { return current == other.current; }
+		bool operator!=(const iterator& other) const { return !(*this == other); }
 	};
 	
+	iterator begin() { return iterator(this); }
+	iterator end() { return iterator(nullptr); }
+	};
+	
+
+
 	Node* root = new Node();
 	Node* timer = root;
 
@@ -81,70 +125,51 @@ namespace Timer
 		}
 	};
 
-	// Functions executed at print time
 	void sort(Node* node)
 	{
-		std::sort(node->children.begin(), node->children.end(), [](const auto& a, const auto& b) 
-				{ return a->time > b->time; });
+		std::sort(node->children.begin(), node->children.end(), [](const auto& a, const auto& b) { return a->time > b->time; });
 		for(auto child: node->children) sort(child);
 	}
-
-	std::unordered_map<Node*, double> percentages;
-	void setPercentages(Node* node)
-	{
-		if(node == root)
-			node->time = std::accumulate(node->children.begin(), node->children.end(), clock::duration::zero(), 
-					[](const auto& acc, const auto& child){ return acc + child->time; });
-
-		for(auto child: node->children)
-		{
-			percentages[child] = 100.0 * child->time / node->time;
-			setPercentages(child);
-		}
-	}
-
-	std::unordered_map<Node*, size_t> alignments;
-	void setAlignments(Node* node)
-	{
-		size_t offset = 0;
-		for(auto child: node->children) offset = std::max(child->name.size(), offset);
-		alignments[node] = offset;
-		for(auto child: node->children) setAlignments(child);
-	}
-
+	
 	template<typename time_t, typename... Options>
-	std::string __string(Node* node, size_t depth = 0)
+	std::string __string(Node* node)
 	{
-		std::ostringstream stream;
-		
-		if(node != root)
-		{
-			for(size_t i = 0; i < depth - 1; i++) stream << "| ";
+		if (node == root) return "";
 
-			std::string unit = units<time_t>();
+		std::stringstream stream;
+	
+		for(size_t i = 0; i < node->depth - 1; i++) stream << "| ";
 
-			if isOption(Align, Options) stream << std::left << std::setw(alignments[node->parent] + 2);
-			stream << node->name + ": " << std::chrono::duration_cast<time_t>(node->time).count() << unit;
-			
-			if isOption(Percentage, Options) stream << " " << percentages[node] << "%";	
-			stream << std::endl;
-		}
+		stream << node->name + ": ";
 		
-		for(auto child: node->children) 
-			stream << __string<time_t, Options...>(child, depth + 1);
+		std::string unit = units<time_t>();
+		if isOption(Align, Options) stream << std::right << std::setw(60 - stream.tellp());
+		stream << std::chrono::duration_cast<time_t>(node->time).count() << unit;
+	
+		double percentage = 100.0*node->time / node->parent->time;
+		if isOption(Align, Options) stream << std::left << std::setw(60 - stream.tellp() + 20);
+		if isOption(Percentage, Options) stream << " " << percentage << "%";	
+	
+		stream << std::endl;
 		
 		return stream.str();
 	}
 
+	// Main function that converts the measurements to string
 	template<typename... Options>
 	std::string string()
 	{
 		using time_t = get_time_t<std::chrono::milliseconds, Options...>;
 		
-		if isOption(Sort, Options) 		 sort(root);
-		if isOption(Percentage, Options) setPercentages(root);
-		if isOption(Align, Options) 	 setAlignments(root);
-		return __string<time_t, Options...>(root);
+		if isOption(Sort, Options) 	sort(root);
+
+		if isOption(Percentage, Options)
+			root->time = std::accumulate(root->children.begin(), root->children.end(), clock::duration::zero(), 
+					[](const auto& acc, const auto& child){ return acc + child->time; });
+		
+		std::ostringstream stream;
+		std::for_each(root->begin(), root->end(), [&](Node& node) { stream << __string<time_t, Options...>(&node); });
+		return stream.str();
 	}
 	
 }
@@ -189,5 +214,8 @@ int main()
 	}
 	}
 
-	std::cout << Timer::string<Timer::Sort, Timer::Percentage, Timer::Align>();
+	std::cout << Timer::string<Timer::Align>() << std::endl;
+	std::cout << Timer::string<Timer::Sort, Timer::Align>() << std::endl;
+	std::cout << Timer::string<std::chrono::microseconds, Timer::Sort, Timer::Percentage, Timer::Align>() << std::endl;
+	std::cout << Timer::string<std::chrono::nanoseconds, Timer::Align>() << std::endl;
 }
