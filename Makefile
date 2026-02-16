@@ -1,5 +1,5 @@
 main: main.cpp
-	g++ -std=c++17 -Wall -Wextra $< -o main
+	g++ -std=c++17 -Wall -Wextra --pedantic $< -o main
 
 iterator: main_iterator.cpp
 	g++ -std=c++17 -Wall -Wextra $< -o main_iterator

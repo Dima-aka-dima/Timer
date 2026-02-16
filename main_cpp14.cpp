@@ -13,17 +13,17 @@
 namespace Timer
 {
 	
-	#define Measure __Measure _
+	#define Measure __Measure _measurement
 	
 	using clock = std::chrono::high_resolution_clock;
 	std::unordered_map<std::type_index, std::string> units = 
 	{
-		{typeid(std::chrono::nanoseconds), "ns"},
-		{typeid(std::chrono::microseconds), "us"},
-		{typeid(std::chrono::milliseconds), "ms"},
-		{typeid(std::chrono::seconds), "s"},
-		{typeid(std::chrono::minutes), "min"},
-		{typeid(std::chrono::hours), "h"}
+		{typeid(std::chrono::nanoseconds),  "ns" },
+		{typeid(std::chrono::microseconds), "us" },
+		{typeid(std::chrono::milliseconds), "ms" },
+		{typeid(std::chrono::seconds),      "s"  },
+		{typeid(std::chrono::minutes),      "min"},
+		{typeid(std::chrono::hours),        "h"  }
 	};
 	
 	struct Node

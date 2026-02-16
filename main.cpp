@@ -2,17 +2,15 @@
 
 #include <chrono>
 #include <string>
+#include <sstream>
 #include <vector>
-#include <unordered_map>
-#include <typeindex>
-#include <algorithm>
-#include <numeric>
-#include <iomanip>
+#include <algorithm> // std::sort
+#include <numeric>   // std::accumulate
+#include <iomanip>   // std::setw
 
 namespace Timer
 {
 	// Type and other shenanigans	
-	#define Measure __Measure __measurement
 	#define isOption(Option, ...) constexpr ((std::is_same_v<Option, __VA_ARGS__> || ...))	
 	
 	template<typename Period> struct __units    { static constexpr const char* value = "?";  };
@@ -31,6 +29,8 @@ namespace Timer
 	struct __get_time_t<Default, Head, Tail...> { 
 		using type = std::conditional_t<is_duration<Head>::value, Head, typename __get_time_t<Default, Tail...>::type>; };
 	template<typename Default, typename... Args> using get_time_t = typename __get_time_t<Default, Args...>::type;
+
+
 
 	// Print options
 	struct Sort 	  {}; // Sort by time
@@ -58,7 +58,8 @@ namespace Timer
 	
 	Timer* tree = new Timer();
 	Timer* timer = tree;
-
+	
+	#define Measure __Measure __measurement
 	class __Measure
 	{
 		std::chrono::time_point<clock> start;
@@ -81,7 +82,7 @@ namespace Timer
 			timer = timer->parent;
 		}
 	};
-
+	
 
 
 	void sort(Timer* timer)
@@ -148,6 +149,7 @@ int main()
 	{
 		Timer::Measure("First Loop");
 		loop();
+		// Timer::Measure("First Loop part 2"); // Will not compile, one timer per scope!
 	}
 
 	{
@@ -177,5 +179,5 @@ int main()
 	std::cout << Timer::string<>() << std::endl;
 	std::cout << Timer::string<Timer::Sort, Timer::Align>() << std::endl;
 	std::cout << Timer::string<std::chrono::microseconds, Timer::Sort, Timer::Percentage, Timer::Align>() << std::endl;
-	std::cout << Timer::string<std::chrono::nanoseconds, Timer::Align>() << std::endl;
+	std::cout << Timer::string<std::chrono::nanoseconds, Timer::Align>() << std::endl; // Will still be sorted
 }
