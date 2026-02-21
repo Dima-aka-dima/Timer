@@ -10,41 +10,36 @@ void loop(size_t n = 20000000)
 
 int main()
 {
-	Timer::Start("Outer Timer");
+	{Timer::Measure("Outer Timer");
 	{
-		Timer::Scope("First Loop");
+		Timer::Measure("First Loop");
 		loop();
-		// Timer::Scope("First Loop part 2"); // Will not compile, one timer per scope!
-
-		Timer::Start("First loop 2");
-		loop();loop();
-		Timer::Stop();
+		// Timer::Measure("First Loop part 2"); // Will not compile, one timer per scope!
 	}
 
-
-	Timer::Start("Second Loop");	
-	loop();
-
 	{
-		Timer::Scope("Inside Second Loop 1");
+		Timer::Measure("Second Loop");	
 		loop();
-	}
 
-	Timer::Start("Inside Second Loop 2");
-	loop();
-	{
-		Timer::Scope("Inside Inside Second Loop 2");
-		loop(); loop();
+		{
+			Timer::Measure("Inside Second Loop 1");
+			loop();
+		}
+
+		{
+			Timer::Measure("Inside Second Loop 2");
+			loop();
+			{
+				Timer::Measure("Inside Inside Second Loop 2");
+				loop(); loop();
+			}
+		}
 	}
-	
-	Timer::Stop();
-	Timer::Stop();
-	
 	{
-		Timer::Scope("Third Loop");
+		Timer::Measure("Third Loop");
 		loop();
 	}
-	Timer::Stop();
+	}
 
 	std::cout << Timer::string() << std::endl; // Standard way to print
 	std::cout << Timer::string<Timer::Align>() << std::endl; // Aligns columns

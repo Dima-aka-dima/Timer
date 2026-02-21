@@ -2,11 +2,18 @@ Timer namespace that can be used to measure execution time in scope.
 
 ### Example Usage
 Measuring
+```
+Timer::Start("Timer name");
+// ...
+Timer::Stop();
+```
+Measuring scope
 ```cpp
 {Measure("Timer name"); // Timer starts
 	// ...
 } // Timer stops
 ```
+
 Printing 
 ```cpp
 std::cout << Timer::string() << std::endl;

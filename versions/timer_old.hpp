@@ -35,8 +35,7 @@ namespace Timer
 	struct Percentage {}; // Display percentage of outer timer
 	struct Align 	  {}; // Align as columns
 	
-	size_t maxNameLength = 0;
-	size_t maxDepth = 0;
+	constexpr size_t maxNameLength = 45;
 	constexpr size_t maxTimeLength = 15;
 
 	using clock = std::chrono::high_resolution_clock;
@@ -58,36 +57,30 @@ namespace Timer
 	Timer* tree = new Timer();
 	Timer* timer = tree;
 
-	// Main measurement functions
-	std::vector<std::chrono::time_point<clock>> starts;
-	void Start(std::string name = "")
-	{
-		maxNameLength = std::max(name.size(), maxNameLength);
-		timer->children.push_back(new Timer(timer, name));
-		timer = timer->children.back();
-
-		starts.push_back(clock::now());
-	}
-
-	void Stop()
-	{
-		auto duration = clock::now() - starts.back();
-		starts.pop_back();
-			
-		maxDepth = std::max(timer->depth, maxDepth);
-		timer->time = duration;
-		timer = timer->parent;
-
-	}
-
-	// Measuring in scope. Construction (destruction)
+	// Main measurement class. Construction (destruction)
 	// corresponds to starting (stopping) the measuremsent
-	#define Scope __Scope __measurement
-	class __Scope
+	#define Measure __Measure __measurement
+	class __Measure
 	{
+		std::chrono::time_point<clock> start;
+
 	public:	
-		__Scope(std::string name = "") { Start(name); }
-		~__Scope() { Stop(); }
+		
+		__Measure(std::string name = "")
+		{
+			timer->children.push_back(new Timer(timer, name));
+			timer = timer->children.back();
+
+			start = clock::now();
+		}
+
+		~__Measure()
+		{
+			auto duration = clock::now() - start;
+			
+			timer->time = duration;
+			timer = timer->parent;
+		}
 	};
 	
 
@@ -108,15 +101,15 @@ namespace Timer
 		{
 			// Timer name and depth
 			for(size_t i = 0; i < timer->depth - 1; i++) stream << "| ";
-			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + 2*maxDepth - stream.tellp());
 			stream << timer->name + ": ";
 			
 			// Time measured in time_t
-			if isOption(Align, Options) stream << std::left << std::setw(maxTimeLength);
-			stream << std::to_string(std::chrono::duration_cast<time_t>(timer->time).count()) + units<time_t>();
+			if isOption(Align, Options) stream << std::right << std::setw(maxNameLength - stream.tellp());
+			stream << std::chrono::duration_cast<time_t>(timer->time).count() << units<time_t>();
 		
 			// Percentage
 			double percentage = 100.0 * timer->time / timer->parent->time;
+			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + maxTimeLength - stream.tellp());
 			if isOption(Percentage, Options) stream << " " << percentage << "%";	
 			stream << std::endl;
 		}
@@ -130,7 +123,6 @@ namespace Timer
 	template<typename... Options>
 	std::string string()
 	{
-		if(not starts.empty()) { return "\033[31mError: Not all timers have stopped"; }; 
 		using time_t = get_time_t<std::chrono::milliseconds, Options...>;
 		
 		if isOption(Sort, Options) sort(tree);
