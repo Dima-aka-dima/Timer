@@ -117,7 +117,7 @@ namespace Timer
 	
 	// Converts one measurement to string 
 	template<typename time_t, typename... Options>
-	std::string __string(Timer* timer)
+	std::string string(Timer* timer)
 	{
 		std::stringstream stream;
 		
@@ -148,7 +148,7 @@ namespace Timer
 			stream << std::endl;
 		}
 
-		for(auto child: timer->children) stream << __string<time_t, Options...>(child);
+		for(auto child: timer->children) stream << string<time_t, Options...>(child);
 		
 		return stream.str();
 	}
@@ -167,7 +167,7 @@ namespace Timer
 			tree->time = std::accumulate(tree->children.begin(), tree->children.end(), clock::duration::zero(), 
 					[](const auto& acc, const auto& child){ return acc + child->time; });
 		
-		return __string<time_t, Options...>(tree);
+		return string<time_t, Options...>(tree);
 	}
 	
 }
