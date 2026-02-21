@@ -27,17 +27,31 @@ namespace Timer
 	struct __get_time_t<Default, Head, Tail...> { 
 		using type = std::conditional_t<is_duration<Head>::value, Head, typename __get_time_t<Default, Tail...>::type>; };
 	template<typename Default, typename... Args> using get_time_t = typename __get_time_t<Default, Args...>::type;
+	
+	const std::string RESET   = "\033[0m";	  // Default
+	const std::string DIM     = "\033[2m";    // Tree pipes |
+	const std::string CYAN    = "\033[36m";   // Time values
+	const std::string GREEN   = "\033[32m";   // Low percentages
+	const std::string YELLOW  = "\033[33m";   // Mid percentages
+	const std::string RED     = "\033[31m";   // High percentages
 
-
+	const std::string& percentageColor(double percentage)
+	{
+		if(percentage < 100.0*1.0/3.0) return GREEN;
+		if(percentage < 100.0*2.0/3.0) return YELLOW;
+		return RED;
+	}
 
 	// Print options
 	struct Sort 	  {}; // Sort by time
 	struct Percentage {}; // Display percentage of outer timer
 	struct Align 	  {}; // Align as columns
-	
+	struct Color      {}; // Color the output
+
 	size_t maxNameLength = 0;
 	size_t maxDepth = 0;
-	constexpr size_t maxTimeLength = 15;
+	constexpr size_t maxTimeLength = 10;
+
 
 	using clock = std::chrono::high_resolution_clock;
 	
@@ -107,17 +121,26 @@ namespace Timer
 		if(timer != tree)
 		{
 			// Timer name and depth
+			if isOption(Color, Options) stream << DIM;
 			for(size_t i = 0; i < timer->depth - 1; i++) stream << "| ";
-			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + 2*maxDepth - stream.tellp());
+			stream << RESET;
+			
+			size_t depthLength = 3; if isOption(Color, Options) depthLength++;
+			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + depthLength*maxDepth - stream.tellp());
 			stream << timer->name + ": ";
 			
 			// Time measured in time_t
-			if isOption(Align, Options) stream << std::left << std::setw(maxTimeLength);
-			stream << std::to_string(std::chrono::duration_cast<time_t>(timer->time).count()) + units<time_t>();
+			if isOption(Color, Options) stream << CYAN;
+			if isOption(Align, Options) stream << std::right << std::setw(maxTimeLength);
+			stream << std::chrono::duration_cast<time_t>(timer->time).count();
+			stream << RESET << units<time_t>();
 		
 			// Percentage
 			double percentage = 100.0 * timer->time / timer->parent->time;
-			if isOption(Percentage, Options) stream << " " << percentage << "%";	
+			if isOption(Color, Options) stream << percentageColor(percentage);
+			if isOption(Percentage, Options) stream << "\t\t" << percentage << "%";	
+			stream << RESET;
+
 			stream << std::endl;
 		}
 
@@ -130,7 +153,8 @@ namespace Timer
 	template<typename... Options>
 	std::string string()
 	{
-		if(not starts.empty()) { return "\033[31mError: Not all timers have stopped"; }; 
+		if(not starts.empty()) return "\033[31mError: Not all timers have stopped"; 
+
 		using time_t = get_time_t<std::chrono::milliseconds, Options...>;
 		
 		if isOption(Sort, Options) sort(tree);

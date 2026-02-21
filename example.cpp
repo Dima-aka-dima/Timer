@@ -49,5 +49,5 @@ int main()
 	std::cout << Timer::string() << std::endl; // Standard way to print
 	std::cout << Timer::string<Timer::Align>() << std::endl; // Aligns columns
 	std::cout << Timer::string<Timer::Sort, Timer::Align>() << std::endl; // Sorts by time
-	std::cout << Timer::string<std::chrono::microseconds, Timer::Percentage, Timer::Align>() << std::endl; // Will still be sorted
+	std::cout << Timer::string<std::chrono::microseconds, Timer::Percentage, Timer::Align, Timer::Color>() << std::endl; // Will still be sorted
 }
