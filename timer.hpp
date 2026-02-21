@@ -1,6 +1,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <stack>
 #include <sstream>
 #include <algorithm> // std::sort
 #include <numeric>   // std::accumulate
@@ -76,20 +77,20 @@ namespace Timer
 	Timer* timer = tree;
 
 	// Main measurement functions
-	std::vector<std::chrono::time_point<clock>> starts;
+	std::stack<std::chrono::time_point<clock>> starts;
 	void Start(std::string name = "")
 	{
 		maxNameLength = std::max(name.size(), maxNameLength);
 		timer->children.push_back(new Timer(timer, name));
 		timer = timer->children.back();
 
-		starts.push_back(clock::now());
+		starts.push(clock::now());
 	}
 
 	void Stop()
 	{
-		auto duration = clock::now() - starts.back();
-		starts.pop_back();
+		auto duration = clock::now() - starts.top();
+		starts.pop();
 			
 		maxDepth = std::max(timer->depth, maxDepth);
 		timer->time = duration;
