@@ -47,6 +47,9 @@ namespace Timer
 	struct Percentage {}; // Display percentage of outer timer
 	struct Align 	  {}; // Align as columns
 	struct Color      {}; // Color the output
+	
+	// TODO:
+	// struct Units      {}; // Automatic units
 
 	size_t maxNameLength = 0;
 	size_t maxDepth = 0;
@@ -120,11 +123,12 @@ namespace Timer
 		
 		if(timer != tree)
 		{
-			// Timer name and depth
+			// Timer depth
 			if isOption(Color, Options) stream << DIM;
 			for(size_t i = 0; i < timer->depth - 1; i++) stream << "| ";
 			stream << RESET;
-			
+		
+			// Timer name
 			size_t depthLength = 3; if isOption(Color, Options) depthLength++;
 			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + depthLength*maxDepth - stream.tellp());
 			stream << timer->name + ": ";
