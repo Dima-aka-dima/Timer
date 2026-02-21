@@ -2,7 +2,7 @@ Timer namespace that can be used to measure execution time in scope.
 
 ### Example Usage
 Measuring
-```
+```cpp
 Timer::Start("Timer name");
 // ...
 Timer::Stop();
