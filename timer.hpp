@@ -9,7 +9,10 @@
 
 namespace Timer
 {
-	// Type shenanigans	
+	// Compile time code 
+	
+	// #define SAFE // Introduces small overhead -- use when nanoseconds are not important
+	
 	#define isOption(Option, ...) constexpr ((std::is_same_v<Option, __VA_ARGS__> || ...))	
 	
 	template<typename Period> struct __units    { static constexpr const char* value = "?";  };
@@ -89,6 +92,9 @@ namespace Timer
 
 	void Stop()
 	{
+#ifdef SAFE
+		if(starts.empty()) {std::cerr << RED << "Error: no timers to stop" << std::endl; return; };
+#endif
 		auto duration = clock::now() - starts.top();
 		starts.pop();
 			
@@ -158,7 +164,7 @@ namespace Timer
 	template<typename... Options>
 	std::string string()
 	{
-		if(not starts.empty()) return "\033[31mError: Not all timers have stopped"; 
+		if(not starts.empty()) return RED + "Error: Not all timers have stopped"; 
 
 		using time_t = get_time_t<std::chrono::milliseconds, Options...>;
 		

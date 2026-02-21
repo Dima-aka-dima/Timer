@@ -45,7 +45,7 @@ int main()
 		loop();
 	}
 	Timer::Stop();
-
+	
 	std::cout << Timer::string() << std::endl; // Standard way to print
 	std::cout << Timer::string<Timer::Align>() << std::endl; // Aligns columns
 	std::cout << Timer::string<Timer::Sort, Timer::Align>() << std::endl; // Sorts by time

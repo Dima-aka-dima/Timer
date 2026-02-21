@@ -38,3 +38,4 @@ Outer Timer:                           403084us             100%
 | First Loop:                           57564us             14.2811%
 ```
 For more options see `example.cpp` that can be compiled with `make example`.
+To not segfault when more timers stopped than started use define `SAFE`.
