@@ -101,14 +101,13 @@ namespace Timer
 		
 		// Check if peers with the same name exist
 		bool found = false;
-		for(auto child: timer->children)
+		for(auto child: timer->children) if(child->name == name) 
 		{
-			if(child->name == name) 
-			{
-				found = true;
-				timer = child;
-			}
+			found = true;
+			timer = child;
+			break;
 		}
+
 		if(not found)
 		{
 			timer->children.push_back(new Timer(timer, name));
@@ -120,9 +119,10 @@ namespace Timer
 
 	void Stop()
 	{
-#ifdef SAFE
+		#ifdef SAFE
 		if(starts.empty()) {std::cerr << RED << "Error: no timers to stop" << std::endl; return; };
-#endif
+		#endif
+
 		auto duration = clock::now() - starts.top();
 		starts.pop();
 			
@@ -150,32 +150,7 @@ namespace Timer
 		std::sort(timer->children.begin(), timer->children.end(), [](const auto& a, const auto& b) { return a->time > b->time; });
 		for(auto child: timer->children) sort(child);
 	}
-	
-	void average(std::vector<Timer*>& timers) 
-	{
-		std::unordered_map<std::string, std::pair<clock::duration, size_t>> accumulator;
-		for (const auto* timer : timers) 
-		{
-			auto& [sum, count] = accumulator[timer->name];
-			sum += timer->time;
-			count++;
-		}
 
-		for (auto* timer : timers)
-			timer->time = accumulator[timer->name].first / accumulator[timer->name].second;
-
-		std::unordered_set<std::string> seen;
-		auto end = std::stable_partition(timers.begin(), timers.end(), 
-				[&](auto* timer) { return seen.insert(timer->name).second; });
-		timers.erase(end, timers.end());
-	}
-
-	void gather(Timer* timer)
-	{
-		average(timer->children);
-		for(auto child: timer->children) gather(child);
-	}
-	
 
 	// Converts one measurement to string 
 	template<typename time_t, typename... Options>
@@ -224,8 +199,6 @@ namespace Timer
 
 		using time_t = get_time_t<std::chrono::milliseconds, Options...>;
 		
-		gather(tree);
-
 		if isOption(Sort, Options) sort(tree);
 
 		if isOption(Percentage, Options)
