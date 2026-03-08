@@ -79,8 +79,9 @@ namespace Timer
 	struct Timer
 	{
 		std::string name = "";
-		clock::duration time;
+		clock::duration time {0};
 		size_t depth = 0;
+		size_t count = 0;
 
 		Timer* parent = nullptr;
 		std::vector<Timer*> children;
@@ -97,8 +98,22 @@ namespace Timer
 	void Start(std::string name = "")
 	{
 		maxNameLength = std::max(name.size(), maxNameLength);
-		timer->children.push_back(new Timer(timer, name));
-		timer = timer->children.back();
+		
+		// Check if peers with the same name exist
+		bool found = false;
+		for(auto child: timer->children)
+		{
+			if(child->name == name) 
+			{
+				found = true;
+				timer = child;
+			}
+		}
+		if(not found)
+		{
+			timer->children.push_back(new Timer(timer, name));
+			timer = timer->children.back();
+		}
 
 		starts.push(clock::now());
 	}
@@ -112,7 +127,8 @@ namespace Timer
 		starts.pop();
 			
 		maxDepth = std::max(timer->depth, maxDepth);
-		timer->time = duration;
+		timer->time += duration;
+		timer->count++;
 		timer = timer->parent;
 
 	}
@@ -177,7 +193,8 @@ namespace Timer
 			// Timer name
 			size_t depthLength = 3; if isOption(Color, Options) depthLength++;
 			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + depthLength*maxDepth - stream.tellp());
-			stream << timer->name + ": ";
+			std::string name = timer->name + (timer->count == 1 ? ":" : " (" + std::to_string(timer->count) + "):");
+			stream << name;
 			
 			// Time measured in time_t
 			if isOption(Color, Options) stream << CYAN;
