@@ -2,16 +2,29 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <unordered_set>
+#include <unordered_map>
 #include <sstream>
 #include <algorithm> // std::sort
 #include <numeric>   // std::accumulate
 #include <iomanip>   // std::setw
 
+/*
+auto counts = std::accumulate(
+    items.begin(), items.end(),
+    std::unordered_map<size_t, size_t>{},
+    [](auto res, const auto& x) {
+        ++res[x];
+        return std::move(res);
+    });
+*/
+
+
 namespace Timer
 {
 	// Compile time code 
 	
-	// #define SAFE // Introduces small overhead -- use when nanoseconds are not important
+	#define SAFE // Introduces small overhead -- comment out when nanoseconds are important
 	
 	#define isOption(Option, ...) constexpr ((std::is_same_v<Option, __VA_ARGS__> || ...))	
 	
@@ -122,6 +135,32 @@ namespace Timer
 		for(auto child: timer->children) sort(child);
 	}
 	
+	void average(std::vector<Timer*>& timers) 
+	{
+		std::unordered_map<std::string, std::pair<clock::duration, size_t>> accumulator;
+		for (const auto* timer : timers) 
+		{
+			auto& [sum, count] = accumulator[timer->name];
+			sum += timer->time;
+			count++;
+		}
+
+		for (auto* timer : timers)
+			timer->time = accumulator[timer->name].first / accumulator[timer->name].second;
+
+		std::unordered_set<std::string> seen;
+		auto end = std::stable_partition(timers.begin(), timers.end(), 
+				[&](auto* timer) { return seen.insert(timer->name).second; });
+		timers.erase(end, timers.end());
+	}
+
+	void gather(Timer* timer)
+	{
+		average(timer->children);
+		for(auto child: timer->children) gather(child);
+	}
+	
+
 	// Converts one measurement to string 
 	template<typename time_t, typename... Options>
 	std::string string(Timer* timer)
@@ -168,6 +207,8 @@ namespace Timer
 
 		using time_t = get_time_t<std::chrono::milliseconds, Options...>;
 		
+		gather(tree);
+
 		if isOption(Sort, Options) sort(tree);
 
 		if isOption(Percentage, Options)
