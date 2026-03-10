@@ -58,10 +58,6 @@ namespace Timer
 	// TODO:
 	// struct Units      {}; // Automatic units
 
-	size_t maxNameLength = 0;
-	size_t maxDepth = 0;
-	constexpr size_t maxTimeLength = 10;
-
 
 	using clock = std::chrono::high_resolution_clock;
 	
@@ -87,8 +83,6 @@ namespace Timer
 	std::stack<std::chrono::time_point<clock>> starts;
 	void Start(std::string name = "")
 	{
-		maxNameLength = std::max(name.size(), maxNameLength);
-		
 		// Check if peers with the same name exist
 		bool found = false;
 		for(auto child: timer->children) if(child->name == name) 
@@ -116,7 +110,6 @@ namespace Timer
 		auto duration = clock::now() - starts.top();
 		starts.pop();
 			
-		maxDepth = std::max(timer->depth, maxDepth);
 		timer->time += duration;
 		timer->count++;
 		timer = timer->parent;
@@ -172,14 +165,14 @@ namespace Timer
 			stream << RESET;
 		
 			// Timer name
-			size_t depthLength = 3; if isOption(Color, Options) depthLength++;
-			if isOption(Align, Options) stream << std::left << std::setw(maxNameLength + depthLength*maxDepth - stream.tellp());
-			std::string name = timer->name + (timer->count == 1 ? ":" : " (" + std::to_string(timer->count) + "):");
+			if isOption(Align, Options) stream << std::left << std::setw(50 - stream.tellp());
+			std::string name = timer->name + (timer->count == 1 ? "" : " (" + std::to_string(timer->count) + ")") + ":";
 			stream << name;
-			
+	
+
 			// Time measured in time_t
 			if isOption(Color, Options) stream << CYAN;
-			if isOption(Align, Options) stream << std::right << std::setw(maxTimeLength);
+			if isOption(Align, Options) stream << std::right << std::setw(10);
 			stream << std::chrono::duration_cast<time_t>(timer->time).count();
 			stream << RESET << units<time_t>();
 		
