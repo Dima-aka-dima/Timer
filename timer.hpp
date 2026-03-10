@@ -141,7 +141,6 @@ namespace Timer
 		return nullptr;
 	}
 	
-	// TODO: implement
 	Timer* get(std::string name) 
 	{
 		return __get(tree, name);
