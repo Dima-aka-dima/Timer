@@ -9,16 +9,6 @@
 #include <numeric>   // std::accumulate
 #include <iomanip>   // std::setw
 
-/*
-auto counts = std::accumulate(
-    items.begin(), items.end(),
-    std::unordered_map<size_t, size_t>{},
-    [](auto res, const auto& x) {
-        ++res[x];
-        return std::move(res);
-    });
-*/
-
 
 namespace Timer
 {
@@ -142,7 +132,20 @@ namespace Timer
 		__Scope(std::string name = "") { Start(name); }
 		~__Scope() { Stop(); }
 	};
+
 	
+	Timer* __get(Timer* node, std::string name)
+	{
+		if (node->name == name) return node;
+		for(auto child: node->children) return __get(child, name);
+		return nullptr;
+	}
+	
+	// TODO: implement
+	Timer* get(std::string name) 
+	{
+		return __get(tree, name);
+	};
 
 
 	void sort(Timer* timer)
