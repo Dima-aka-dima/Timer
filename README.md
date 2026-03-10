@@ -1,4 +1,4 @@
-Timer namespace that can be used to measure execution time in scope.
+Timer namespace. 
 
 ### Example Usage
 Measuring
@@ -13,7 +13,16 @@ Measuring scope
 	// ...
 } // Timer stops
 ```
-
+Measuring loop or inside a function that is called multiple time. Will save only one timer and the number of calls. 
+Will save multiple timer if the timers are not peers.
+```cpp
+for(...)
+{
+	Timer::Start("Timer name");
+	...
+	Timer::Stop();
+}
+```
 Printing 
 ```cpp
 std::cout << Timer::string() << std::endl;
