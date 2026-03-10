@@ -137,7 +137,11 @@ namespace Timer
 	Timer* __get(Timer* node, std::string name)
 	{
 		if (node->name == name) return node;
-		for(auto child: node->children) return __get(child, name);
+		for(auto child: node->children) 
+		{
+			Timer* t =  __get(child, name);
+			if(t) return t;
+		}
 		return nullptr;
 	}
 	
